@@ -1,7 +1,7 @@
 package com.ironhack.demosecurityjwt;
 
-import com.ironhack.demosecurityjwt.models.Role;
-import com.ironhack.demosecurityjwt.models.User;
+import com.ironhack.demosecurityjwt.models.*;
+import com.ironhack.demosecurityjwt.services.impl.AccountService;
 import com.ironhack.demosecurityjwt.services.impl.RoleService;
 import com.ironhack.demosecurityjwt.services.impl.UserService;
 import org.springframework.boot.CommandLineRunner;
@@ -20,15 +20,13 @@ public class DemoSecurityJwtApplication {
         SpringApplication.run(DemoSecurityJwtApplication.class, args);
     }
 
-    // To centralize configuration and allow to use it through dependency injection in our application
     @Bean
     PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
-    // To have some data to start with, it's executed automatically
     @Bean
-    CommandLineRunner run(UserService userService, RoleService roleService) {
+    CommandLineRunner run(UserService userService, RoleService roleService, AccountService accountService) {
         return args -> {
             roleService.saveRole(new Role(null, "ROLE_USER"));
             roleService.saveRole(new Role(null, "ROLE_ADMIN"));
@@ -43,7 +41,9 @@ public class DemoSecurityJwtApplication {
             roleService.addRoleToUser("jane", "ROLE_USER");
             roleService.addRoleToUser("chris", "ROLE_ADMIN");
             roleService.addRoleToUser("chris", "ROLE_USER");
+
+            accountService.saveAccount(new CheckingAccount(null, "CHK123456", 5000.0, 1000.0));
+            accountService.saveAccount(new SavingsAccount(null, "SVG123456", 3000.0, 0.02));
         };
     }
-
 }

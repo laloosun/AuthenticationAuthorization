@@ -20,83 +20,55 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import static org.springframework.http.HttpMethod.*;
 import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
 
-/**
- * This is the main configuration class for security in the application. It enables web security,
- * sets up the password encoder, and sets up the security filter chain.
- */
 @Configuration
-@EnableWebSecurity // indicates it is a security config class using spring web security
+@EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    // UserDetailsService is an interface provided by Spring Security that defines a way to retrieve user information
     @Autowired
     private UserDetailsService userDetailsService;
 
-    // Autowired instance of the AuthenticationManagerBuilder (provided by Spring Security)
     @Autowired
     private AuthenticationManagerBuilder authManagerBuilder;
 
-    /**
-     * Bean definition for PasswordEncoder
-     *
-     * @return an instance of the DelegatingPasswordEncoder
-     */
     @Bean
     public PasswordEncoder encoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
-    /**
-     * Bean definition for AuthenticationManager
-     *
-     * @param authenticationConfiguration the instance of AuthenticationConfiguration
-     * @return an instance of the AuthenticationManager
-     * @throws Exception if there is an issue getting the instance of the AuthenticationManager
-     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    /**
-     * Bean definition for SecurityFilterChain
-     *
-     * @param http the instance of HttpSecurity
-     * @return an instance of the SecurityFilterChain
-     * @throws Exception if there is an issue building the SecurityFilterChain
-     */
     @Bean
     protected SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // CustomAuthenticationFilter instance created
         CustomAuthenticationFilter customAuthenticationFilter = new CustomAuthenticationFilter(authManagerBuilder.getOrBuild());
-
-        // set the URL that the filter should process
         customAuthenticationFilter.setFilterProcessesUrl("/api/login");
 
-        // disable CSRF protection because we are using tokens, not session
         http.csrf().disable();
-
-        // set the session creation policy to stateless, to not maintain sessions in the server
         http.sessionManagement().sessionCreationPolicy(STATELESS);
-
-        // set up authorization for different request matchers and user roles
         http.authorizeHttpRequests((requests) -> requests
-                .requestMatchers("/api/login/**").permitAll() // public endpoint, we could add more if we wanted to
-                // could be deleted .requestMatchers(GET, "/api/users").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
+                .requestMatchers("/api/login/**").permitAll()
+                .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers(GET, "/api/users").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
                 .requestMatchers(POST, "/api/users").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(PUT, "/api/users/**").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(DELETE, "/api/users/**").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(GET, "/api/roles").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
                 .requestMatchers(POST, "/api/roles").hasAnyAuthority("ROLE_ADMIN")
-                .requestMatchers(POST, "/api/roles/add-to-user").hasAnyAuthority("ROLE_ADMIN")
-                .anyRequest().authenticated()); // any other endpoints require authentication
+                .requestMatchers(PUT, "/api/roles/**").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(PATCH, "/api/roles/**").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(DELETE, "/api/roles/**").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(GET, "/api/accounts/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
+                .requestMatchers(POST, "/api/accounts/**").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(PUT, "/api/accounts/**").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(DELETE, "/api/accounts/**").hasAnyAuthority("ROLE_ADMIN")
+                .anyRequest().authenticated());
 
-        // add the custom authentication filter to the http security object
         http.addFilter(customAuthenticationFilter);
-
-        // Add the custom authorization filter before the standard authentication filter.
         http.addFilterBefore(new CustomAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class);
 
-        // Build the security filter chain to be returned.
         return http.build();
     }
 }
